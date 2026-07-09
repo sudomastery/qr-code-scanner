@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.5"
+        android:scaleY="0.5"
+        android:translateX="27"
+        android:translateY="27">
+        <!-- Stylized QR glyph -->
+        <path
+            android:fillColor="#8AB4F8"
+            android:pathData="M14,14h28v28h-28zM24,24v8h8v-8zM66,14h28v28h-28zM76,24v8h8v-8zM14,66h28v28h-28zM24,76v8h8v-8z" />
+        <path
+            android:fillColor="#C2E7FF"
+            android:pathData="M66,66h12v12h-12zM82,66h12v12h-12zM66,82h12v12h-12zM82,82h12v12h-12zM50,14h8v8h-8zM50,30h8v8h-8zM50,50h8v8h-8zM14,50h8v8h-8zM30,50h8v8h-8zM66,50h8v8h-8zM86,50h8v8h-8zM50,66h8v8h-8zM50,86h8v8h-8z" />
+    </group>
+</vector>
