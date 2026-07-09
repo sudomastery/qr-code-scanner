@@ -11,6 +11,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -29,14 +30,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     @OptIn(ExperimentalCoroutinesApi::class)
     val history: StateFlow<List<ScanRecord>> = searchQuery
         .flatMapLatest { query ->
-            if (query.isBlank()) dao.observeAll() else dao.search(query)
+            if (query.isBlank()) dao.observeAll() else dao.search(escapeLike(query))
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun recordScan(raw: String, format: String) {
-        if (!settings.value.saveHistory) return
-        val content = ScanContent.parse(raw)
+    private fun escapeLike(query: String): String = query
+        .replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_")
+
+    /**
+     * Reads the persisted settings directly, unlike [settings].value which
+     * holds hardcoded defaults until DataStore's first emission.
+     */
+    suspend fun awaitSettings(): Settings = settingsRepo.settings.first()
+
+    fun recordScan(raw: String, format: String, content: ScanContent) {
         viewModelScope.launch {
+            if (!awaitSettings().saveHistory) return@launch
             dao.insert(
                 ScanRecord(
                     rawValue = raw,

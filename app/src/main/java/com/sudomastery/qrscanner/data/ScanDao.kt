@@ -11,8 +11,9 @@ interface ScanDao {
     @Query("SELECT * FROM scans ORDER BY favorite DESC, timestamp DESC")
     fun observeAll(): Flow<List<ScanRecord>>
 
+    /** [query] must have %, _ and \ escaped with a backslash. */
     @Query(
-        "SELECT * FROM scans WHERE rawValue LIKE '%' || :query || '%' " +
+        "SELECT * FROM scans WHERE rawValue LIKE '%' || :query || '%' ESCAPE '\\' " +
             "ORDER BY favorite DESC, timestamp DESC"
     )
     fun search(query: String): Flow<List<ScanRecord>>

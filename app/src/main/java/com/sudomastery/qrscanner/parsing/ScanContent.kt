@@ -106,11 +106,12 @@ sealed class ScanContent {
             }
         }
 
-        // WIFI:S:MyNetwork;T:WPA;P:secret;H:true;;
-        private fun parseWifi(raw: String): ScanContent {
+        // Parses KEY:value;KEY:value;; fields where '\' escapes the next
+        // character, as used by both the WIFI: and MATMSG: formats.
+        private fun parseDelimitedFields(raw: String): Map<String, String> {
             val fields = mutableMapOf<String, String>()
-            var i = 5 // skip "WIFI:"
-            while (i < raw.length) {
+            var i = raw.indexOf(':') + 1 // skip the scheme prefix
+            while (i in 1 until raw.length) {
                 val sep = raw.indexOf(':', i)
                 if (sep < 0) break
                 val key = raw.substring(i, sep).uppercase(Locale.ROOT)
@@ -131,6 +132,23 @@ sealed class ScanContent {
                 fields[key] = value.toString()
                 i = j + 1
             }
+            return fields
+        }
+
+        // Extracts ?key=value&key=value params without Uri.getQueryParameter,
+        // which throws on opaque URIs like mailto: and sms:.
+        private fun queryParams(raw: String): Map<String, String> {
+            val query = raw.substringAfter('?', "")
+            if (query.isEmpty()) return emptyMap()
+            return query.split('&').filter { it.isNotEmpty() }.associate { param ->
+                Uri.decode(param.substringBefore('=')) to
+                    Uri.decode(param.substringAfter('=', ""))
+            }
+        }
+
+        // WIFI:S:MyNetwork;T:WPA;P:secret;H:true;;
+        private fun parseWifi(raw: String): ScanContent {
+            val fields = parseDelimitedFields(raw)
             return Wifi(
                 raw = raw,
                 ssid = fields["S"].orEmpty(),
@@ -141,33 +159,36 @@ sealed class ScanContent {
         }
 
         private fun parseMailto(raw: String): ScanContent {
-            val uri = Uri.parse(raw)
-            val address = raw.removePrefix("mailto:").substringBefore('?')
+            val address = raw.substringAfter(':').substringBefore('?')
+            val params = queryParams(raw)
             return Email(
                 raw = raw,
                 address = Uri.decode(address),
-                subject = uri.getQueryParameter("subject").orEmpty(),
-                body = uri.getQueryParameter("body").orEmpty()
+                subject = params["subject"].orEmpty(),
+                body = params["body"].orEmpty()
             )
         }
 
         // MATMSG:TO:a@b.com;SUB:Hello;BODY:Hi;;
         private fun parseMatmsg(raw: String): ScanContent {
-            fun field(name: String): String {
-                val marker = "$name:"
-                val start = raw.indexOf(marker, ignoreCase = true)
-                if (start < 0) return ""
-                val from = start + marker.length
-                val end = raw.indexOf(';', from)
-                return if (end < 0) raw.substring(from) else raw.substring(from, end)
-            }
-            return Email(raw, field("TO"), field("SUB"), field("BODY"))
+            val fields = parseDelimitedFields(raw)
+            return Email(
+                raw,
+                fields["TO"].orEmpty(),
+                fields["SUB"].orEmpty(),
+                fields["BODY"].orEmpty()
+            )
         }
 
+        // SMSTO:number:message or sms:number?body=message
         private fun parseSms(raw: String): ScanContent {
-            val body = raw.substringAfter(':')
-            val parts = body.split(':', limit = 2)
-            return Sms(raw, parts[0], parts.getOrElse(1) { "" })
+            val rest = raw.substringAfter(':')
+            return if (raw.startsWith("smsto:", ignoreCase = true)) {
+                val parts = rest.split(':', limit = 2)
+                Sms(raw, parts[0], parts.getOrElse(1) { "" })
+            } else {
+                Sms(raw, rest.substringBefore('?'), queryParams(raw)["body"].orEmpty())
+            }
         }
 
         private fun parseGeo(raw: String): ScanContent {

@@ -2,10 +2,30 @@ package com.sudomastery.qrscanner.scan
 
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import com.google.mlkit.vision.barcode.BarcodeScanner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
+
+/**
+ * Single ML Kit scanner shared by the camera analyzer and gallery imports,
+ * so the format configuration and hit selection live in one place and no
+ * per-use detector instances are leaked.
+ */
+object BarcodeReader {
+
+    val client: BarcodeScanner by lazy {
+        BarcodeScanning.getClient(
+            BarcodeScannerOptions.Builder()
+                .setBarcodeFormats(Barcode.FORMAT_ALL_FORMATS)
+                .build()
+        )
+    }
+
+    fun firstHit(barcodes: List<Barcode>): Barcode? =
+        barcodes.firstOrNull { !it.rawValue.isNullOrEmpty() }
+}
 
 /**
  * Feeds camera frames to ML Kit. Reports the first barcode with a value and
@@ -15,11 +35,7 @@ class QrAnalyzer(
     private val onResult: (rawValue: String, format: Int) -> Unit
 ) : ImageAnalysis.Analyzer {
 
-    private val scanner = BarcodeScanning.getClient(
-        BarcodeScannerOptions.Builder()
-            .setBarcodeFormats(Barcode.FORMAT_ALL_FORMATS)
-            .build()
-    )
+    private val scanner = BarcodeReader.client
 
     @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
     override fun analyze(imageProxy: ImageProxy) {
@@ -32,7 +48,7 @@ class QrAnalyzer(
             InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
         scanner.process(image)
             .addOnSuccessListener { barcodes ->
-                val hit = barcodes.firstOrNull { !it.rawValue.isNullOrEmpty() }
+                val hit = BarcodeReader.firstHit(barcodes)
                 if (hit != null) {
                     onResult(hit.rawValue!!, hit.format)
                 }

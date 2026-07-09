@@ -27,11 +27,15 @@ object Actions {
         vibrator.vibrate(VibrationEffect.createOneShot(80, VibrationEffect.DEFAULT_AMPLITUDE))
     }
 
+    // Reused across beeps: each instance holds a native AudioTrack that is
+    // never released otherwise, and per-call instances can be finalized
+    // mid-tone.
+    private val toneGenerator: ToneGenerator? by lazy {
+        runCatching { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 70) }.getOrNull()
+    }
+
     fun beep() {
-        runCatching {
-            ToneGenerator(AudioManager.STREAM_NOTIFICATION, 70)
-                .startTone(ToneGenerator.TONE_PROP_BEEP2, 150)
-        }
+        runCatching { toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP2, 150) }
     }
 
     fun copy(context: Context, label: String, text: String) {

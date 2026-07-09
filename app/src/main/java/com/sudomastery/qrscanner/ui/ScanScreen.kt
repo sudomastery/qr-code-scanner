@@ -2,6 +2,7 @@ package com.sudomastery.qrscanner.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -39,6 +40,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,15 +53,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import com.google.mlkit.vision.barcode.BarcodeScannerOptions
-import com.google.mlkit.vision.barcode.BarcodeScanning
-import com.google.mlkit.vision.barcode.common.Barcode
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.google.mlkit.vision.common.InputImage
 import com.sudomastery.qrscanner.parsing.ScanContent
+import com.sudomastery.qrscanner.scan.BarcodeReader
 import com.sudomastery.qrscanner.scan.QrAnalyzer
 import com.sudomastery.qrscanner.scan.barcodeFormatName
 import com.sudomastery.qrscanner.util.Actions
 import java.util.concurrent.Executors
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val RESCAN_COOLDOWN_MS = 2500L
 
@@ -68,15 +73,27 @@ fun ScanScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
     val settings by viewModel.settings.collectAsState()
 
-    var hasCameraPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
-                PackageManager.PERMISSION_GRANTED
-        )
-    }
+    fun cameraPermissionGranted() =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+            PackageManager.PERMISSION_GRANTED
+
+    var hasCameraPermission by remember { mutableStateOf(cameraPermissionGranted()) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted -> hasCameraPermission = granted }
+
+    // Re-check on resume: the user may grant the permission from system
+    // settings after a permanent denial, which does not recreate the process.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasCameraPermission = cameraPermissionGranted()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     LaunchedEffect(Unit) {
         if (!hasCameraPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
@@ -89,6 +106,12 @@ fun ScanScreen(viewModel: MainViewModel) {
     var camera by remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
     val scanPaused = currentResult != null
 
+    val scope = rememberCoroutineScope()
+
+    fun toast(message: String) {
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    }
+
     fun handleHit(raw: String, formatName: String) {
         if (currentResult != null) return
         val now = System.currentTimeMillis()
@@ -99,16 +122,21 @@ fun ScanScreen(viewModel: MainViewModel) {
         lastValue = raw
         lastValueAt = now
 
-        if (settings.vibrateOnScan) Actions.vibrate(context)
-        if (settings.beepOnScan) Actions.beep()
-        viewModel.recordScan(raw, formatName)
+        scope.launch {
+            // Read persisted settings directly: the settings StateFlow holds
+            // defaults until DataStore's first emission after cold start.
+            val current = viewModel.awaitSettings()
+            if (current.vibrateOnScan) Actions.vibrate(context)
+            if (current.beepOnScan) Actions.beep()
 
-        val content = ScanContent.parse(raw)
-        if (settings.autoOpenLinks && content is ScanContent.Url) {
-            val target = if (settings.removeTrackers) content.cleaned else content.raw
-            Actions.openUrl(context, target)
-        } else {
-            currentResult = content
+            val content = ScanContent.parse(raw)
+            viewModel.recordScan(raw, formatName, content)
+            if (current.autoOpenLinks && content is ScanContent.Url) {
+                val target = if (current.removeTrackers) content.cleaned else content.raw
+                Actions.openUrl(context, target)
+            } else {
+                currentResult = content
+            }
         }
     }
 
@@ -116,22 +144,24 @@ fun ScanScreen(viewModel: MainViewModel) {
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        runCatching {
-            val image = InputImage.fromFilePath(context, uri)
-            BarcodeScanning.getClient(
-                BarcodeScannerOptions.Builder()
-                    .setBarcodeFormats(Barcode.FORMAT_ALL_FORMATS)
-                    .build()
-            ).process(image).addOnSuccessListener { barcodes ->
-                val hit = barcodes.firstOrNull { !it.rawValue.isNullOrEmpty() }
-                if (hit != null) {
-                    handleHit(hit.rawValue!!, barcodeFormatName(hit.format))
-                } else {
-                    android.widget.Toast
-                        .makeText(context, "No code found in image", android.widget.Toast.LENGTH_SHORT)
-                        .show()
-                }
+        scope.launch {
+            val image = runCatching {
+                withContext(Dispatchers.IO) { InputImage.fromFilePath(context, uri) }
+            }.getOrNull()
+            if (image == null) {
+                toast("Could not read image")
+                return@launch
             }
+            BarcodeReader.client.process(image)
+                .addOnSuccessListener { barcodes ->
+                    val hit = BarcodeReader.firstHit(barcodes)
+                    if (hit != null) {
+                        handleHit(hit.rawValue!!, barcodeFormatName(hit.format))
+                    } else {
+                        toast("No code found in image")
+                    }
+                }
+                .addOnFailureListener { toast("Could not scan image") }
         }
     }
 
