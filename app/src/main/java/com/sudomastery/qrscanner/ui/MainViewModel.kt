@@ -138,4 +138,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setAutoVaultOtp(value: Boolean) = viewModelScope.launch {
         settingsRepo.setAutoVaultOtp(value)
     }
+
+    fun setThemeColor(value: String) = viewModelScope.launch {
+        settingsRepo.setThemeColor(value)
+    }
 }

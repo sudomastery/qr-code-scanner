@@ -19,6 +19,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -50,8 +51,10 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            QrScannerTheme {
-                AppScaffold()
+            val viewModel: MainViewModel = viewModel()
+            val settings by viewModel.settings.collectAsState()
+            QrScannerTheme(themeColor = settings.themeColor) {
+                AppScaffold(viewModel)
             }
         }
     }
@@ -64,7 +67,7 @@ class MainActivity : FragmentActivity() {
 }
 
 @Composable
-private fun AppScaffold(viewModel: MainViewModel = viewModel()) {
+private fun AppScaffold(viewModel: MainViewModel) {
     val navController = rememberNavController()
     val destinations = listOf(
         Destination("scan", "Scan", Icons.Filled.QrCodeScanner, Icons.Outlined.QrCodeScanner),

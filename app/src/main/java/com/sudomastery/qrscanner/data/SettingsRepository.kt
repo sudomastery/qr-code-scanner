@@ -3,6 +3,7 @@ package com.sudomastery.qrscanner.data
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -15,7 +16,8 @@ data class Settings(
     val autoOpenLinks: Boolean = false,
     val removeTrackers: Boolean = true,
     val saveHistory: Boolean = true,
-    val autoVaultOtp: Boolean = false
+    val autoVaultOtp: Boolean = false,
+    val themeColor: String = "blue"
 )
 
 class SettingsRepository(private val context: Context) {
@@ -27,6 +29,7 @@ class SettingsRepository(private val context: Context) {
         val removeTrackers = booleanPreferencesKey("remove_trackers")
         val saveHistory = booleanPreferencesKey("save_history")
         val autoVaultOtp = booleanPreferencesKey("auto_vault_otp")
+        val themeColor = stringPreferencesKey("theme_color")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { prefs ->
@@ -36,7 +39,8 @@ class SettingsRepository(private val context: Context) {
             autoOpenLinks = prefs[Keys.autoOpen] ?: false,
             removeTrackers = prefs[Keys.removeTrackers] ?: true,
             saveHistory = prefs[Keys.saveHistory] ?: true,
-            autoVaultOtp = prefs[Keys.autoVaultOtp] ?: false
+            autoVaultOtp = prefs[Keys.autoVaultOtp] ?: false,
+            themeColor = prefs[Keys.themeColor] ?: "blue"
         )
     }
 
@@ -57,4 +61,7 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setAutoVaultOtp(value: Boolean) =
         context.dataStore.edit { it[Keys.autoVaultOtp] = value }
+
+    suspend fun setThemeColor(value: String) =
+        context.dataStore.edit { it[Keys.themeColor] = value }
 }
