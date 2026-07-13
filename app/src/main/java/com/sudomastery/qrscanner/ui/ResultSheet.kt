@@ -69,6 +69,7 @@ fun ResultSheet(
                 is ScanContent.Sms -> SimpleResult("SMS to ${content.number}", content.message, content)
                 is ScanContent.Geo -> SimpleResult("Location", "${content.lat}, ${content.lng}", content)
                 is ScanContent.Contact -> SimpleResult("Contact", content.raw, content)
+                is ScanContent.Passkey -> PasskeyResult(content)
                 is ScanContent.PlainText -> SimpleResult("Text", content.raw, content)
             }
         }
@@ -222,6 +223,32 @@ private fun OtpResult(
 
     FilledTonalButton(onClick = { Actions.copy(context, "OTP URI", content.raw) }) {
         Text("Copy full otpauth URI")
+    }
+}
+
+@Composable
+private fun PasskeyResult(content: ScanContent.Passkey) {
+    val context = LocalContext.current
+
+    SheetTitle("Passkey sign in")
+    Text(
+        text = "This code starts a passkey sign in on this phone, like the QR " +
+            "shown when signing in on Windows or in a browser. Passkey codes " +
+            "expire quickly, so continue right away.",
+        style = MaterialTheme.typography.bodyMedium
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Button(
+            onClick = { Actions.openRaw(context, content.raw) },
+            modifier = Modifier.weight(1f)
+        ) {
+            Icon(Icons.Filled.OpenInNew, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Continue sign in")
+        }
+        FilledTonalButton(onClick = { Actions.copy(context, "Passkey link", content.raw) }) {
+            Icon(Icons.Filled.ContentCopy, contentDescription = "Copy")
+        }
     }
 }
 

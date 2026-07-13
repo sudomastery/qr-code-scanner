@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Link
@@ -225,5 +226,6 @@ private fun typeIcon(type: String) = when (type) {
     "SMS" -> Icons.Filled.Sms
     "GEO" -> Icons.Filled.LocationOn
     "CONTACT" -> Icons.Filled.Person
+    "PASSKEY" -> Icons.Filled.Fingerprint
     else -> Icons.Filled.Notes
 }

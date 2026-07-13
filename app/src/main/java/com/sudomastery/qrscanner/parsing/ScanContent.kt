@@ -38,6 +38,9 @@ sealed class ScanContent {
 
     data class Contact(override val raw: String) : ScanContent()
 
+    /** FIDO cross-device passkey sign-in QR, e.g. shown by Windows. */
+    data class Passkey(override val raw: String) : ScanContent()
+
     data class PlainText(override val raw: String) : ScanContent()
 
     val typeName: String
@@ -50,6 +53,7 @@ sealed class ScanContent {
             is Sms -> "SMS"
             is Geo -> "GEO"
             is Contact -> "CONTACT"
+            is Passkey -> "PASSKEY"
             is PlainText -> "TEXT"
         }
 
@@ -77,6 +81,7 @@ sealed class ScanContent {
                 lower.startsWith("smsto:") || lower.startsWith("sms:") -> parseSms(trimmed)
                 lower.startsWith("geo:") -> parseGeo(trimmed)
                 lower.startsWith("begin:vcard") || lower.startsWith("mecard:") -> Contact(trimmed)
+                lower.startsWith("fido:") -> Passkey(trimmed)
                 lower.startsWith("http://") || lower.startsWith("https://") ->
                     Url(trimmed, UrlCleaner.clean(trimmed))
                 else -> PlainText(trimmed)

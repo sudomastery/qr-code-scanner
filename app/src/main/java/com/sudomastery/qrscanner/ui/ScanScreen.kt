@@ -143,6 +143,8 @@ fun ScanScreen(viewModel: MainViewModel) {
             if (current.autoOpenLinks && content is ScanContent.Url) {
                 val target = if (current.removeTrackers) content.cleaned else content.raw
                 Actions.openUrl(context, target)
+            } else if (current.autoOpenLinks && content is ScanContent.Passkey) {
+                Actions.openRaw(context, content.raw)
             } else {
                 currentVaulted = autoVault
                 currentResult = content
