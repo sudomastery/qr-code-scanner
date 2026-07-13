@@ -10,9 +10,9 @@ A fast, dark-mode QR and barcode scanner for Android. Built with Kotlin, Jetpack
 | :---: | :---: | :---: |
 | ![Scan screen](docs/screenshots/scan.png) | ![Link result](docs/screenshots/result-url.png) | ![OTP result](docs/screenshots/result-otp.png) |
 
-| Vault with live codes | History | Settings |
-| :---: | :---: | :---: |
-| ![Vault](docs/screenshots/vault.png) | ![History](docs/screenshots/history.png) | ![Settings](docs/screenshots/settings.png) |
+| Vault with live codes | Theme colors | History | Settings |
+| :---: | :---: | :---: | :---: |
+| ![Vault](docs/screenshots/vault.png) | ![Themes](docs/screenshots/themes.png) | ![History](docs/screenshots/history.png) | ![Settings](docs/screenshots/settings.png) |
 
 ## Features
 
@@ -25,9 +25,11 @@ A fast, dark-mode QR and barcode scanner for Android. Built with Kotlin, Jetpack
 - **Vibrate and beep on scan**, each toggleable.
 - **Wi-Fi codes**: shows network name and security, with the password masked and copyable.
 - **Recognizes** email, phone, SMS, geo, and contact (vCard/MECARD) codes with matching actions.
+- **Passkey QR codes**: FIDO cross-device sign-in codes, like the QR Windows shows when you sign in with a passkey, are recognized with a Continue sign in button that hands the code straight to your phone's passkey handler.
 - **Scan from images**: pick any photo from your gallery and decode it.
 - **Flashlight toggle and pinch to zoom** in the camera view.
 - **Dark Material You design** with large rounded corners throughout.
+- **Six accent themes**: blue, orange, purple, green, yellow, and red. Pick one in Settings and the whole app recolors instantly.
 
 ## Privacy
 
