@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Visibility
@@ -47,6 +48,8 @@ import com.sudomastery.qrscanner.util.Actions
 fun ResultSheet(
     content: ScanContent,
     settings: Settings,
+    vaulted: Boolean,
+    onAddToVault: (ScanContent.Otp) -> Unit,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
@@ -59,7 +62,7 @@ fun ResultSheet(
         ) {
             when (content) {
                 is ScanContent.Url -> UrlResult(content, settings)
-                is ScanContent.Otp -> OtpResult(content)
+                is ScanContent.Otp -> OtpResult(content, vaulted, onAddToVault)
                 is ScanContent.Wifi -> WifiResult(content)
                 is ScanContent.Email -> SimpleResult("Email", content.address, content)
                 is ScanContent.Phone -> SimpleResult("Phone number", content.number, content)
@@ -113,9 +116,14 @@ private fun UrlResult(content: ScanContent.Url, settings: Settings) {
 }
 
 @Composable
-private fun OtpResult(content: ScanContent.Otp) {
+private fun OtpResult(
+    content: ScanContent.Otp,
+    vaulted: Boolean,
+    onAddToVault: (ScanContent.Otp) -> Unit
+) {
     val context = LocalContext.current
     var secretVisible by remember { mutableStateOf(false) }
+    var inVault by remember { mutableStateOf(vaulted) }
 
     SheetTitle("Authenticator key")
 
@@ -186,6 +194,29 @@ private fun OtpResult(content: ScanContent.Otp) {
                 Spacer(Modifier.width(8.dp))
                 Text("Copy secret key")
             }
+        }
+    }
+
+    if (content.secret.isNotEmpty()) {
+        Button(
+            onClick = {
+                onAddToVault(content)
+                inVault = true
+            },
+            enabled = !inVault,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Filled.Lock, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(if (inVault) "In vault" else "Add to Vault")
+        }
+        if (inVault) {
+            Text(
+                text = "Saved to the vault and kept out of history. Unlock the " +
+                    "Vault tab to see it.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 

@@ -132,6 +132,9 @@ fun HistoryScreen(viewModel: MainViewModel) {
         ResultSheet(
             content = ScanContent.parse(record.rawValue),
             settings = settings,
+            vaulted = false,
+            // Vaulting also deletes the history rows for this value
+            onAddToVault = viewModel::vaultOtp,
             onDismiss = { selected = null }
         )
     }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LinkOff
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.VolumeUp
@@ -80,6 +81,17 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     "parameters before opening or copying",
                 checked = settings.removeTrackers,
                 onCheckedChange = viewModel::setRemoveTrackers
+            )
+        }
+
+        SettingGroup("Vault") {
+            SettingSwitch(
+                icon = Icons.Filled.Lock,
+                title = "Auto vault authenticator scans",
+                subtitle = "Scanned otpauth codes go straight to the vault, " +
+                    "encrypted and kept out of history",
+                checked = settings.autoVaultOtp,
+                onCheckedChange = viewModel::setAutoVaultOtp
             )
         }
 

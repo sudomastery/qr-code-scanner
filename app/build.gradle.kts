@@ -13,8 +13,8 @@ android {
         applicationId = "com.sudomastery.qrscanner"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
     }
 
     signingConfigs {
@@ -63,6 +63,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.core:core-ktx:1.16.0")
+
+    // Vault unlock (fingerprint / face / device credential)
+    implementation("androidx.biometric:biometric:1.1.0")
 
     // Camera
     val camerax = "1.4.2"

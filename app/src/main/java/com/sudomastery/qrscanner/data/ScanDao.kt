@@ -27,6 +27,10 @@ interface ScanDao {
     @Query("DELETE FROM scans WHERE id = :id")
     suspend fun delete(id: Long)
 
+    /** Removes every history row for a value that just moved into the vault. */
+    @Query("DELETE FROM scans WHERE rawValue = :raw")
+    suspend fun deleteByRawValue(raw: String)
+
     @Query("DELETE FROM scans")
     suspend fun clearAll()
 }

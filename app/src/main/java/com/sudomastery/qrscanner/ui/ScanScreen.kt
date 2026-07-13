@@ -100,6 +100,7 @@ fun ScanScreen(viewModel: MainViewModel) {
     }
 
     var currentResult by remember { mutableStateOf<ScanContent?>(null) }
+    var currentVaulted by remember { mutableStateOf(false) }
     var lastValue by remember { mutableStateOf("") }
     var lastValueAt by remember { mutableStateOf(0L) }
     var torchOn by remember { mutableStateOf(false) }
@@ -130,11 +131,20 @@ fun ScanScreen(viewModel: MainViewModel) {
             if (current.beepOnScan) Actions.beep()
 
             val content = ScanContent.parse(raw)
-            viewModel.recordScan(raw, formatName, content)
+            // Auto-vaulted OTP scans skip history entirely so the secret
+            // only ever lives behind the vault's authentication.
+            val autoVault = current.autoVaultOtp &&
+                content is ScanContent.Otp && content.secret.isNotEmpty()
+            if (autoVault) {
+                viewModel.vaultOtp(content as ScanContent.Otp)
+            } else {
+                viewModel.recordScan(raw, formatName, content)
+            }
             if (current.autoOpenLinks && content is ScanContent.Url) {
                 val target = if (current.removeTrackers) content.cleaned else content.raw
                 Actions.openUrl(context, target)
             } else {
+                currentVaulted = autoVault
                 currentResult = content
             }
         }
@@ -228,6 +238,8 @@ fun ScanScreen(viewModel: MainViewModel) {
             ResultSheet(
                 content = content,
                 settings = settings,
+                vaulted = currentVaulted,
+                onAddToVault = viewModel::vaultOtp,
                 onDismiss = { currentResult = null }
             )
         }

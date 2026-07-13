@@ -14,7 +14,8 @@ data class Settings(
     val beepOnScan: Boolean = false,
     val autoOpenLinks: Boolean = false,
     val removeTrackers: Boolean = true,
-    val saveHistory: Boolean = true
+    val saveHistory: Boolean = true,
+    val autoVaultOtp: Boolean = false
 )
 
 class SettingsRepository(private val context: Context) {
@@ -25,6 +26,7 @@ class SettingsRepository(private val context: Context) {
         val autoOpen = booleanPreferencesKey("auto_open_links")
         val removeTrackers = booleanPreferencesKey("remove_trackers")
         val saveHistory = booleanPreferencesKey("save_history")
+        val autoVaultOtp = booleanPreferencesKey("auto_vault_otp")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { prefs ->
@@ -33,7 +35,8 @@ class SettingsRepository(private val context: Context) {
             beepOnScan = prefs[Keys.beep] ?: false,
             autoOpenLinks = prefs[Keys.autoOpen] ?: false,
             removeTrackers = prefs[Keys.removeTrackers] ?: true,
-            saveHistory = prefs[Keys.saveHistory] ?: true
+            saveHistory = prefs[Keys.saveHistory] ?: true,
+            autoVaultOtp = prefs[Keys.autoVaultOtp] ?: false
         )
     }
 
@@ -51,4 +54,7 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setSaveHistory(value: Boolean) =
         context.dataStore.edit { it[Keys.saveHistory] = value }
+
+    suspend fun setAutoVaultOtp(value: Boolean) =
+        context.dataStore.edit { it[Keys.autoVaultOtp] = value }
 }
