@@ -215,6 +215,7 @@ private fun VaultEntryCard(entry: VaultEntry, now: Long, onDelete: () -> Unit) {
     val secret = remember(entry.id) { VaultCrypto.decrypt(entry.secretEnc) }
     val keyBytes = remember(entry.id) { secret?.let { Totp.decodeBase32(it) } }
     val isTotp = entry.type == "totp" && keyBytes != null
+    var showSecret by remember(entry.id) { mutableStateOf(false) }
 
     Card(
         colors = CardDefaults.cardColors(
@@ -238,14 +239,16 @@ private fun VaultEntryCard(entry: VaultEntry, now: Long, onDelete: () -> Unit) {
                 }
                 IconButton(onClick = {
                     if (secret != null) {
-                        Actions.copy(context, "OTP secret", secret)
+                        showSecret = !showSecret
                         VaultLock.touch()
                     }
                 }) {
                     Icon(
                         Icons.Filled.Key,
-                        contentDescription = "Copy secret key",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        contentDescription = if (showSecret) "Hide secret key"
+                        else "Show secret key",
+                        tint = if (showSecret) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 IconButton(onClick = onDelete) {
@@ -302,11 +305,38 @@ private fun VaultEntryCard(entry: VaultEntry, now: Long, onDelete: () -> Unit) {
             } else {
                 Text(
                     text = "${entry.type.uppercase()} key, no live code. Use the key " +
-                        "icon to copy the secret.",
+                        "icon to view the secret.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp)
                 )
+            }
+
+            if (showSecret && secret != null) {
+                Text(
+                    text = "Secret key",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = secret.chunked(4).joinToString(" "),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = {
+                        Actions.copy(context, "OTP secret", secret)
+                        VaultLock.touch()
+                    }) {
+                        Icon(
+                            Icons.Filled.ContentCopy,
+                            contentDescription = "Copy secret key",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         }
     }
