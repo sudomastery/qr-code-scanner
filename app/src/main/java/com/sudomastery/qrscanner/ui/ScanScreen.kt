@@ -107,6 +107,11 @@ fun ScanScreen(viewModel: MainViewModel) {
     var camera by remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
     val scanPaused = currentResult != null
 
+    // Releasing the camera while the sheet is up also turns the torch off
+    LaunchedEffect(scanPaused) {
+        if (scanPaused) torchOn = false
+    }
+
     val scope = rememberCoroutineScope()
 
     fun toast(message: String) {
@@ -189,6 +194,18 @@ fun ScanScreen(viewModel: MainViewModel) {
                     .clip(RoundedCornerShape(28.dp))
             )
 
+            // The camera is released while a result is showing; cover the
+            // preview's frozen last frame with black until it comes back.
+            if (scanPaused) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(12.dp)
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(Color.Black)
+                )
+            }
+
             ScannerOverlay(modifier = Modifier.fillMaxSize())
 
             Row(
@@ -259,12 +276,52 @@ private fun CameraPreview(
     val lifecycleOwner = LocalLifecycleOwner.current
     val executor = remember { Executors.newSingleThreadExecutor() }
     var cameraRef by remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
+    var provider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
+    var previewView by remember { mutableStateOf<PreviewView?>(null) }
     // Read through state so the analyzer callback sees the current value
     val pausedState = remember { mutableStateOf(paused) }
     pausedState.value = paused
 
     DisposableEffect(Unit) {
-        onDispose { executor.shutdown() }
+        onDispose {
+            provider?.unbindAll()
+            executor.shutdown()
+        }
+    }
+
+    // Fully release the camera while a result is showing so nothing is
+    // captured behind the sheet, then rebind when it is dismissed.
+    LaunchedEffect(provider, previewView, paused) {
+        val boundProvider = provider ?: return@LaunchedEffect
+        val view = previewView ?: return@LaunchedEffect
+        if (paused) {
+            boundProvider.unbindAll()
+            cameraRef = null
+            return@LaunchedEffect
+        }
+        val preview = Preview.Builder().build().also {
+            it.surfaceProvider = view.surfaceProvider
+        }
+        val analysis = ImageAnalysis.Builder()
+            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .build()
+        analysis.setAnalyzer(
+            executor,
+            QrAnalyzer { raw, format ->
+                if (!pausedState.value) {
+                    view.post { onHit(raw, format) }
+                }
+            }
+        )
+        boundProvider.unbindAll()
+        val camera = boundProvider.bindToLifecycle(
+            lifecycleOwner,
+            CameraSelector.DEFAULT_BACK_CAMERA,
+            preview,
+            analysis
+        )
+        cameraRef = camera
+        onCameraReady(camera)
     }
 
     AndroidView(
@@ -281,38 +338,16 @@ private fun CameraPreview(
             }
         },
         factory = { ctx ->
-            val previewView = PreviewView(ctx).apply {
+            val view = PreviewView(ctx).apply {
                 implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                 scaleType = PreviewView.ScaleType.FILL_CENTER
             }
             val providerFuture = ProcessCameraProvider.getInstance(ctx)
             providerFuture.addListener({
-                val provider = providerFuture.get()
-                val preview = Preview.Builder().build().also {
-                    it.surfaceProvider = previewView.surfaceProvider
-                }
-                val analysis = ImageAnalysis.Builder()
-                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .build()
-                analysis.setAnalyzer(
-                    executor,
-                    QrAnalyzer { raw, format ->
-                        if (!pausedState.value) {
-                            previewView.post { onHit(raw, format) }
-                        }
-                    }
-                )
-                provider.unbindAll()
-                val camera = provider.bindToLifecycle(
-                    lifecycleOwner,
-                    CameraSelector.DEFAULT_BACK_CAMERA,
-                    preview,
-                    analysis
-                )
-                cameraRef = camera
-                onCameraReady(camera)
+                provider = providerFuture.get()
             }, ContextCompat.getMainExecutor(ctx))
-            previewView
+            previewView = view
+            view
         }
     )
 }
